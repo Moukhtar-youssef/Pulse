@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Moukhtar-youssef/Pulse/internal/server"
+	"github.com/joho/godotenv"
 )
 
 func gracefulShutdown(apiServer *http.Server, done chan bool) {
@@ -23,7 +24,7 @@ func gracefulShutdown(apiServer *http.Server, done chan bool) {
 	log.Println("shutting down gracefully, press Ctrl+C again to force")
 	stop() // Allow Ctrl+C to force shutdown
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if err := apiServer.Shutdown(ctx); err != nil {
 		log.Printf("Server forced to shutdown with error: %v", err)
@@ -35,13 +36,19 @@ func gracefulShutdown(apiServer *http.Server, done chan bool) {
 }
 
 func main() {
-	server := server.NewServer()
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	go server.StartTCPServer(8080)
+	HttpServer := server.NewServer()
 
 	done := make(chan bool, 1)
 
-	go gracefulShutdown(server, done)
+	go gracefulShutdown(HttpServer, done)
 
-	err := server.ListenAndServe()
+	err = HttpServer.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		panic(fmt.Sprintf("http server error: %s", err))
 	}
